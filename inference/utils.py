@@ -61,7 +61,7 @@ class LOFTData:
   metadata: Dict[str, Any]
 
 
-class MimeType(enum.StrEnum):
+class MimeType(enum.Enum):
   TEXT = "text/plain"
   IMAGE_JPEG = "image/jpeg"
   AUDIO_WAV = "audio/wav"

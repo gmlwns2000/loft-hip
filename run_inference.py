@@ -76,14 +76,14 @@ _OUTPUT_PATH = flags.DEFINE_string(
 _MODEL_URL_OR_NAME = flags.DEFINE_enum(
     "model_url_or_name",
     "gemini-1.5-flash-002",
-    models.GeminiModel,
+    map(lambda x: x.value, models.GeminiModel.__members__.values()),
     "Evergreen model URL or API-based model name.",
 )
 _PROJECT_ID = flags.DEFINE_string(
     "project_id",
     None,
     "Project ID of Google Cloud Project.",
-    required=True,
+    required=False,
 )
 _CONTEXT_LENGTH = flags.DEFINE_enum(
     "context_length",

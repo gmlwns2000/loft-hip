@@ -35,9 +35,10 @@ LOCATION = 'us-central1'
 TEMPERATURE = 0.0
 
 
-class GeminiModel(enum.StrEnum):
+class GeminiModel(enum.Enum):
   GEMINI_1_5_FLASH_002 = 'gemini-1.5-flash-002'  # Max input tokens: 1,048,576
   GEMINI_1_5_PRO_002 = 'gemini-1.5-pro-002'  # Max input tokens: 2,097,152
+  OPENAI = 'openai'
 
 
 class Model(metaclass=abc.ABCMeta):
@@ -161,6 +162,51 @@ class VertexAIModel(Model):
 
     return self._postprocess_response(response)
 
+class OpenAiModel(Model):
+  def __init__(self, pid_mapper):
+    self.pid_mapper = pid_mapper
+  
+  def infer(
+    self, 
+    content_chunks: List[ContentChunk], 
+    **kwargs
+  ):
+    import requests, os
+    
+    lines = map(lambda x: x._text, content_chunks)
+    # prompt = "\n\n".join(lines)
+    prompt = map(lambda line: {'role':'user', 'content':line}, lines)
+    
+    # print(prompt, end='\n\n')
+    # print('>>>', prompt[:50].replace('\n','\\n'), '...', prompt[-50:].replace('\n','\\n'), '<<<')
+    print('Now, wait for response...', flush=True)
+    
+    endpoint = os.getenv('ENDPOINT', 'http://localhost:30000/v1')
+    response = requests.post(
+      f"{endpoint}/chat/completions",
+      headers={"Authorization": f"Bearer sk-dummy"},
+      json={
+        "model": "any", 
+        "max_tokens": 512,
+        "messages": list(prompt)
+      },
+    )
+    
+    assert response.status_code == 200
+    text = response.json()['choices'][0]['message']['content']
+    text = text.replace('[|endofturn|]', '')
+    text = text.replace('<|eot_id|>', '')
+    text = text.replace('<end_of_turn>', '')
+    print('Generated:', text.replace('\n','\\n'))
+    
+    final_answers = utils.extract_prediction(text)
+    final_answers = [
+      self.pid_mapper[str(answer)] for answer in final_answers
+    ]
+    
+    print('Final Answer:', final_answers, flush=True)
+    
+    return final_answers
 
 def get_model(
     model_url_or_name: str,
@@ -169,16 +215,21 @@ def get_model(
 ) -> Model:
   """Returns the model to use."""
 
-  if model_url_or_name in GeminiModel.__members__.values():
-    if project_id is None:
-      raise ValueError(
-          'Project ID and service account are required for VertexAIModel.'
-      )
-    model = VertexAIModel(
-        project_id=project_id,
-        model_name=model_url_or_name,
+  if model_url_or_name in map(lambda x: x.value, GeminiModel.__members__.values()):
+    if model_url_or_name == GeminiModel.OPENAI.value:
+      model = OpenAiModel(
         pid_mapper=pid_mapper,
-    )
+      )
+    else:
+      if project_id is None:
+        raise ValueError(
+            'Project ID and service account are required for VertexAIModel.'
+        )
+      model = VertexAIModel(
+          project_id=project_id,
+          model_name=model_url_or_name,
+          pid_mapper=pid_mapper,
+      )
   else:
     raise ValueError(f'Unsupported model: {model_url_or_name}')
   return model
