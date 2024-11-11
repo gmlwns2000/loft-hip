@@ -107,6 +107,9 @@ class RetrievalEvaluation(evaluation.LOFTEvalution):
       else:
         gold_ids = self.process_goldens([instance.gold_answers[turn_number]])
       pred_ids = self.process_prediction(instance.model_output[turn_number])
+      if instance.metadata is None:
+        print(f'Instance {instance} is not evaluated')
+        continue
       if "candidate_path" in instance.metadata:
         gold_ids = [pid2text[pid] for pid in gold_ids]
         pred_ids = [pid2text[pid] for pid in pred_ids]

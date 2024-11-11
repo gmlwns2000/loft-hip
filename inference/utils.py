@@ -424,7 +424,7 @@ def extract_prediction(model_output: str) -> List[str]:
   for l in model_output:
     # Turns the string "Final Answer: [1, ...]" into the list of ints [1, ...]
     if "final answer" in l.lower() and "[" in l and "]" in l:
-      pred_start_index = l.find("[")
+      pred_start_index = l.rfind("[")
       pred_end_index = l.rfind("]") + 1  # Finds the last "]"
       pred_as_str = l[pred_start_index:pred_end_index].strip()
       try:
@@ -432,5 +432,6 @@ def extract_prediction(model_output: str) -> List[str]:
         preds = ast.literal_eval(pred_as_str)
       except Exception as e:  # pylint: disable=broad-exception-caught
         print(l, e)
+        preds = [pred_as_str.strip(']').strip('[')]
       break
   return preds

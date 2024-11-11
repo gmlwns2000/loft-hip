@@ -173,36 +173,66 @@ class OpenAiModel(Model):
   ):
     import requests, os
     
-    lines = map(lambda x: x._text, content_chunks)
-    # prompt = "\n\n".join(lines)
-    prompt = map(lambda line: {'role':'user', 'content':line}, lines)
+    lines = list(map(lambda x: x._text, content_chunks))
+    for i in range(len(lines)):
+      if lines[i].startswith('ID:'):
+        spl = lines[i].split('|')
+        header = spl[0].strip()
+        header = f'# Start of ID: \'{header.strip("ID: ")}\''
+        title = spl[1].strip()
+        content = '|'.join(spl[2:-1]).strip()
+        footer = spl[-1].strip()
+        footer = f'# The end of ID: \'{footer.strip("END ID: ")}\''
+        lines[i] = f'-----\n\n{header}\n\n**{title}**\n\n> {content}\n\n{footer}\n\n-----'
+    prompt = "\n\n".join(lines)
+    # prompt = map(lambda line: {'role':'user', 'content':line}, lines)
     
     # print(prompt, end='\n\n')
-    # print('>>>', prompt[:50].replace('\n','\\n'), '...', prompt[-50:].replace('\n','\\n'), '<<<')
+    print('>>>', prompt[:50].replace('\n','\\n'), '...', prompt[-50:].replace('\n','\\n'), '<<<')
     print('Now, wait for response...', flush=True)
+    
+    prompt = f"""<|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+{prompt}
+
+<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+"""
     
     endpoint = os.getenv('ENDPOINT', 'http://localhost:30000/v1')
     response = requests.post(
-      f"{endpoint}/chat/completions",
+      f"{endpoint}/completions",
       headers={"Authorization": f"Bearer sk-dummy"},
       json={
         "model": "any", 
-        "max_tokens": 512,
-        "messages": list(prompt)
+        "max_tokens": 256,
+        "temperature": 0,
+        "prompt": prompt
       },
     )
     
+    # print(response.json())
+    
     assert response.status_code == 200
-    text = response.json()['choices'][0]['message']['content']
+    try:
+      text = response.json()['choices'][0]['message']['content']
+    except:
+      text = response.json()['choices'][0]['text']
     text = text.replace('[|endofturn|]', '')
     text = text.replace('<|eot_id|>', '')
     text = text.replace('<end_of_turn>', '')
     print('Generated:', text.replace('\n','\\n'))
     
     final_answers = utils.extract_prediction(text)
-    final_answers = [
-      self.pid_mapper[str(answer)] for answer in final_answers
-    ]
+    if os.getenv('IGNORE_PID_MAPPER', '0') == '0':
+      final_answers = [
+        self.pid_mapper[str(answer)] if str(answer) in self.pid_mapper else str(answer) for answer in final_answers
+      ]
     
     print('Final Answer:', final_answers, flush=True)
     
