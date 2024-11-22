@@ -133,20 +133,30 @@ class RagEvaluation(evaluation.LOFTEvalution):
       instance_metrics = {}
       # Single prediction is allowed and matched against. Ill-formed Model
       # outputs may provide multiple answers but are ignored.
-      if len(pred_answers) > 1:
-        print(
-            'Warning: Multiple answers found in prediction for single value'
-            f' retrieval: {pred_answers}.'
-        )
+      # if len(pred_answers) > 1:
+      #   print(
+      #       'Warning: Multiple answers found in prediction for single value'
+      #       f' retrieval: {pred_answers}.'
+      #   )
 
       pred_answer = pred_answers[0]
+      pred_answer_concat = ', '.join(pred_answers)
       instance_metrics['qid'] = instance.qid
       instance_metrics['turn_id'] = str(turn_number)
       instance_metrics['em'] = utils.compute_em(gold_answers, pred_answer)
-      instance_metrics['subspan_em'] = utils.compute_subspan_em(
-          gold_answers, pred_answer
+      instance_metrics['subspan_em'] = max(
+        utils.compute_subspan_em(
+            gold_answers, pred_answer
+        ),
+        utils.compute_subspan_em(
+            gold_answers, pred_answer_concat
+        ),
       )
-      instance_metrics['f1'] = utils.compute_f1(gold_answers, pred_answer)
+      
+      instance_metrics['f1'] = max(
+        utils.compute_f1(gold_answers, pred_answer),
+        utils.compute_f1(gold_answers, pred_answer_concat),
+      )
 
       # Make sure to call below to aggregate all the metrics.
       self.add_instance_metrics(instance_metrics)

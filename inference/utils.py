@@ -432,6 +432,8 @@ def extract_prediction(model_output: str) -> List[str]:
         preds = ast.literal_eval(pred_as_str)
       except Exception as e:  # pylint: disable=broad-exception-caught
         print(l, e)
-        preds = [pred_as_str.strip(']').strip('[')]
+        preds = [pred_as_str.strip(']').strip('[').strip('\'')]
       break
+  if len(preds) == 0:
+    preds = [model_output[0].strip().strip(']').strip('[').strip().strip('\'').strip()]
   return preds

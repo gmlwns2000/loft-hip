@@ -174,45 +174,57 @@ class OpenAiModel(Model):
     import requests, os
     
     lines = list(map(lambda x: x._text, content_chunks))
-    for i in range(len(lines)):
-      if lines[i].startswith('ID:'):
-        spl = lines[i].split('|')
-        header = spl[0].strip()
-        header = f'# Start of ID: \'{header.strip("ID: ")}\''
-        title = spl[1].strip()
-        content = '|'.join(spl[2:-1]).strip()
-        footer = spl[-1].strip()
-        footer = f'# The end of ID: \'{footer.strip("END ID: ")}\''
-        lines[i] = f'-----\n\n{header}\n\n**{title}**\n\n> {content}\n\n{footer}\n\n-----'
-    prompt = "\n\n".join(lines)
+    # for i in range(len(lines)):
+    #   if lines[i].startswith('ID:'):
+    #     spl = lines[i].split('|')
+    #     header = spl[0].strip()
+    #     header = f'# Start of ID: \'{header.strip("ID: ")}\''
+    #     title = spl[1].strip()
+    #     content = '|'.join(spl[2:-1]).strip()
+    #     footer = spl[-1].strip()
+    #     footer = f'# The end of ID: \'{footer.strip("END ID: ")}\''
+    #     lines[i] = f'-----\n\n{header}\n\n**{title}**\n\n> {content}\n\n{footer}\n\n-----'
+    # prompt = "\n\n".join(lines)
+    prompt = "\n".join(lines)
     # prompt = map(lambda line: {'role':'user', 'content':line}, lines)
     
     # print(prompt, end='\n\n')
     print('>>>', prompt[:50].replace('\n','\\n'), '...', prompt[-50:].replace('\n','\\n'), '<<<')
     print('Now, wait for response...', flush=True)
     
-    prompt = f"""<|start_header_id|>system<|end_header_id|>
+#     IS_GEMMA = os.getenv('IS_GEMMA', '0') == '1'
+#     if IS_GEMMA:
+#       pass
+#     else:
+#       prompt = f"""<|start_header_id|>system<|end_header_id|>
 
-Cutting Knowledge Date: December 2023
-Today Date: 26 Jul 2024
+# Cutting Knowledge Date: December 2023
+# Today Date: 26 Jul 2024
 
-<|eot_id|><|start_header_id|>user<|end_header_id|>
+# <|eot_id|><|start_header_id|>user<|end_header_id|>
 
-{prompt}
+# {prompt}
 
-<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+# <|eot_id|><|start_header_id|>assistant<|end_header_id|>
 
-"""
-    
+# """    
     endpoint = os.getenv('ENDPOINT', 'http://localhost:30000/v1')
+    api_key = os.getenv('API_KEY', 'sk-dummy')
     response = requests.post(
-      f"{endpoint}/completions",
-      headers={"Authorization": f"Bearer sk-dummy"},
+      f"{endpoint}/chat/completions",
+      headers={"Authorization": f"Bearer {api_key}"},
       json={
         "model": "any", 
         "max_tokens": 256,
+        # "min_tokens": 16, # THIS HURT PERFORMANCE ALOT.
+        # "top_k": 1,
         "temperature": 0,
-        "prompt": prompt
+        "messages": [
+          {
+          'role': 'user',
+          'content': prompt,
+          }
+        ]
       },
     )
     
@@ -233,6 +245,8 @@ Today Date: 26 Jul 2024
       final_answers = [
         self.pid_mapper[str(answer)] if str(answer) in self.pid_mapper else str(answer) for answer in final_answers
       ]
+    else:
+      final_answers = [text]
     
     print('Final Answer:', final_answers, flush=True)
     

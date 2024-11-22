@@ -91,10 +91,20 @@ def compute_em(gold_answers: list[str], pred_answer: str) -> float:
   """Calculates exact match score. Taken from SQuAD evaluation."""
   return max([float(ga == pred_answer) for ga in gold_answers])
 
+def normalize_goal_answers(ga: str):
+  ga = ga.strip()
+  return [
+    ga,
+    ga.replace('-', ' '),
+    ga.replace(',', ''),
+    ga.replace('\"', ''),
+    ga.replace('\\', ''),
+    ga.lower().replace('the', '').strip(),
+  ]
 
 def compute_subspan_em(gold_answers: list[str], pred_answer: str) -> float:
   """Calculates subspan match score."""
-  return max([1.0 if ga in pred_answer else 0.0 for ga in gold_answers])
+  return max([max(1.0 if ga.lower() in pred_answer.lower() else 0.0 for ga in normalize_goal_answers(gaa)) for gaa in gold_answers])
 
 
 def compute_f1(gold_answers: list[str], pred_answer: str) -> float:
